@@ -423,10 +423,11 @@ public class Main {
                 //FIXME:
                 BuilderInstruction35c builderInstruction35c = (BuilderInstruction35c) builderInstruction;
                 //                return String.format("filled-new-array %s, %s",String.join(",",))
+                return "";
             }
-            case FILLED_NEW_ARRAY_RANGE:
-                //FIXME:
-                break;
+            case FILLED_NEW_ARRAY_RANGE: {
+                return "";
+            }
             case ARRAY_LENGTH: {
                 BuilderInstruction12x builderInstruction12x = (BuilderInstruction12x) builderInstruction;
                 return String
@@ -457,31 +458,26 @@ public class Main {
                 registers[2] = builderInstruction35c.getRegisterE();
                 registers[3] = builderInstruction35c.getRegisterF();
                 registers[4] = builderInstruction35c.getRegisterG();
+                List<String> parameterTypes = resolvedMethod.getParameterTypes();
 
-                //                int[] resultRegister = new int[builderInstruction35c.getRegisterCount()];
-                //
-                //                if (isStatic) {
-                //                    System.arraycopy(registers, 0, resultRegister, 0, builderInstruction35c.getRegisterCount());
-                //                } else {
-                //                    int ithis = builderInstruction35c.getRegisterCount() - 1;
-                //                    resultRegister[0] = registers[ithis];//this
-                //                    for (int i = 0, j = 1; i < ithis; i++, j++) {
-                //                        resultRegister[j] = registers[i];
-                //                    }
-                //                }
-
-                String[] registerNames = null;
-                if (builderInstruction35c.getRegisterCount() > 0) {
-                    //非静态方法的话 registercount-1 = this;//需要刨去这货
-                    int realRegisterCount = builderInstruction35c.getRegisterCount() - (isStatic ? 0 : 1);
-
-                    registerNames = new String[realRegisterCount];
-                    for (int i = 0; i < registerNames.length; i++) {
-                        registerNames[i] = formatRegisterName(registers[i], localInfo);
-                    }
+                int argReg = 0;
+                List<String> registerNames = new ArrayList<>();
+                if (!isStatic) {
+                    argReg++;
                 }
-                return String.format("%s.%s(%s)", invokeObject, invokeMethod,
-                        registerNames == null ? "" : String.join(",", registerNames));
+
+                for (String p : parameterTypes) {
+                    int reg = argReg;
+
+                    if ("D".equals(p) || "J".equals(p)) {
+                        argReg += 2;
+                    } else {
+                        argReg += 1;
+                    }
+                    registerNames.add(formatRegisterName(registers[reg], localInfo));
+                }
+
+                return String.format("%s.%s(%s)", invokeObject, invokeMethod, String.join(",", registerNames));
             }
             case SPUT:
             case SPUT_WIDE:
@@ -1028,7 +1024,7 @@ public class Main {
     }
 
     private static String getFiledName(DexBackedFieldReference fieldReference) {
-        return formatTypeDescriptor(fieldReference.getDefiningClass()) + "." + fieldReference.getName();
+        return "this." + fieldReference.getName();
     }
 
     private static String typeToString(String typeDescriptor) {
