@@ -3,6 +3,10 @@ package dodola.flower.dex;
 import org.jf.dexlib2.ValueType;
 import org.jf.dexlib2.iface.value.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
+
 public final class DexEncodedValueUtils {
     public static boolean isDefaultValue(EncodedValue encodedValue) {
         switch (encodedValue.getValueType()) {
@@ -45,11 +49,34 @@ public final class DexEncodedValueUtils {
             case ValueType.LONG:
                 return ((LongEncodedValue) encodedValue).getValue();
             case ValueType.NULL:
-                return true;
+                return "null";
             case ValueType.SHORT:
                 return ((ShortEncodedValue) encodedValue).getValue();
+            case ValueType.STRING:
+                return ((StringEncodedValue) encodedValue).getValue();
+            case ValueType.TYPE:
+                return ((TypeEncodedValue) encodedValue).getValue();
+            case ValueType.FIELD:
+                return ((FieldEncodedValue) encodedValue).getValue();
+            case ValueType.ENUM:
+                return ((EnumEncodedValue) encodedValue).getValue();
+            case ValueType.METHOD:
+                return ((MethodEncodedValue) encodedValue).getValue().getName();
+            case ValueType.ARRAY: {
+                ArrayList<String> vals = new ArrayList<>();
+                StringJoiner joiner = new StringJoiner(",");
+                List<? extends EncodedValue> valueS = ((ArrayEncodedValue) encodedValue).getValue();
+                for (EncodedValue encodedValue1 : valueS) {
+                    joiner.add(String.valueOf(getEncodeValue(encodedValue1)));
+                }
+                return String.format("[%s]", joiner.toString());
+            }
+            case ValueType.ANNOTATION:
+                return ((AnnotationEncodedValue) encodedValue).getType();//FIXME:
         }
-        return false;
+       
+        return "Unknown";
+
     }
 
     private DexEncodedValueUtils() {

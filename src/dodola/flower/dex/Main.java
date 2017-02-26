@@ -14,6 +14,7 @@ import org.jf.dexlib2.iface.MethodParameter;
 import org.jf.dexlib2.iface.debug.DebugItem;
 import org.jf.dexlib2.iface.instruction.Instruction;
 import org.jf.dexlib2.iface.reference.MethodReference;
+import org.jf.dexlib2.iface.value.EncodedValue;
 import org.jf.dexlib2.immutable.debug.ImmutableStartLocal;
 import org.jf.dexlib2.util.ReferenceUtil;
 
@@ -34,16 +35,26 @@ public class Main {
             for (DexBackedClassDef aClass : classes) {
                 Indentation indent = new Indentation(0);
 
-                printStream.println(aClass.getType());
+                printStream.println(classToString(aClass));
                 printStream.println("{");
                 indent.increment();
+
+                Iterable<? extends DexBackedField> fields = aClass.getFields();
+                for (DexBackedField field : fields) {
+                    field.getAnnotations().forEach(
+                            (Consumer<Annotation>) annotation -> annotionToString(printStream, annotation, indent));
+                    printStream.print(indent.toString());
+                    printStream.println(String.format("%s %s %s", accessFlagsToString(field.getAccessFlags()),
+                            typeToString(field.getType()), field.getName()));
+                }
 
                 Iterable<? extends DexBackedMethod> methods = aClass.getMethods();
                 methods.forEach((Consumer<DexBackedMethod>) dexBackedMethod -> {
 
                     Set<? extends Annotation> annotations = dexBackedMethod.getAnnotations();
 
-                    annotations.forEach((Consumer<Annotation>) annotation -> annotionToString(printStream, annotation));
+                    annotations.forEach(
+                            (Consumer<Annotation>) annotation -> annotionToString(printStream, annotation, indent));
 
                     List<? extends Set<? extends DexBackedAnnotation>> parameterAnnotations =
                             dexBackedMethod.getParameterAnnotations();
@@ -52,7 +63,7 @@ public class Main {
                             .forEach((Consumer<Set<? extends DexBackedAnnotation>>) dexBackedAnnotations -> {
                                 dexBackedAnnotations.forEach(new Consumer<DexBackedAnnotation>() {
                                     @Override public void accept(DexBackedAnnotation dexBackedAnnotation) {
-                                        annotionToString(printStream, dexBackedAnnotation);
+                                        annotionToString(printStream, dexBackedAnnotation, indent);
                                     }
                                 });
 
@@ -101,14 +112,105 @@ public class Main {
         }
     }
 
+    private static String classToString(DexBackedClassDef aclass) {
+        String extendStr = "";
+
+        if (!"Ljava/lang/Object;".equals(aclass.getSuperclass())) {
+            extendStr = "extends " + formatTypeDescriptor(aclass.getSuperclass());
+        }
+
+        String implmentsStr = "";
+
+        List<String> interfaces = aclass.getInterfaces();
+        if (interfaces.size() > 0) {
+            implmentsStr = "implements " + String.join(",", interfaces);
+        }
+        String accessStr = accessFlagsToString(aclass.getAccessFlags());
+
+        if (!AccessFlags.INTERFACE.isSet(aclass.getAccessFlags()) && !AccessFlags.ENUM.isSet(aclass.getAccessFlags())) {
+            accessStr += " class";
+        }
+
+        return String.format("%s %s %s %s", accessStr, formatTypeDescriptor(aclass.getType()), extendStr, implmentsStr);
+    }
+
+    private static String fieldsToString(DexBackedClassDef aclass) {
+        Iterable<? extends DexBackedField> fields = aclass.getFields();
+        for (DexBackedField field : fields) {
+
+        }
+        return "";
+    }
+
+    private static String accessFlagsToString(int flag) {
+        List<String> access = new ArrayList<String>();
+
+        if ((flag & AccessFlags.PUBLIC.getValue()) != 0)
+            access.add("public");
+
+        if ((flag & AccessFlags.PRIVATE.getValue()) != 0)
+            access.add("private");
+
+        if ((flag & AccessFlags.PROTECTED.getValue()) != 0)
+            access.add("protected");
+
+        if ((flag & AccessFlags.STATIC.getValue()) != 0)
+            access.add("static");
+
+        if ((flag & AccessFlags.FINAL.getValue()) != 0)
+            access.add("final");
+
+        if ((flag & AccessFlags.SYNCHRONIZED.getValue()) != 0)
+            access.add("synchronized");
+
+        if ((flag & AccessFlags.VOLATILE.getValue()) != 0)
+            access.add("volatile");
+
+        if ((flag & AccessFlags.BRIDGE.getValue()) != 0)
+            access.add("bridge");
+
+        if ((flag & AccessFlags.TRANSIENT.getValue()) != 0)
+            access.add("transient");
+
+        if ((flag & AccessFlags.VARARGS.getValue()) != 0)
+            access.add("varargs");
+
+        if ((flag & AccessFlags.NATIVE.getValue()) != 0)
+            access.add("native");
+
+        if ((flag & AccessFlags.INTERFACE.getValue()) != 0)
+            access.add("interface");
+        else if ((flag & AccessFlags.ABSTRACT.getValue()) != 0)
+            access.add("abstract");
+
+        if ((flag & AccessFlags.STRICTFP.getValue()) != 0)
+            access.add("strictfp");
+
+        if ((flag & AccessFlags.SYNTHETIC.getValue()) != 0)
+            access.add("synthetic");
+
+        if ((flag & AccessFlags.ANNOTATION.getValue()) != 0)
+            access.add("annotation");
+
+        if ((flag & AccessFlags.ENUM.getValue()) != 0)
+            access.add("enum");
+
+        if ((flag & AccessFlags.CONSTRUCTOR.getValue()) != 0)
+            access.add("constructor");
+
+        if ((flag & AccessFlags.DECLARED_SYNCHRONIZED.getValue()) != 0)
+            access.add("synchronized");
+
+        return String.join(" ", access);
+    }
+
     private static LocalInfo buildLocalInfo(DexBackedMethod dexBackedMethod) {
 
         LocalInfo info = new LocalInfo();
 
         int insSize = getInsSize(dexBackedMethod);
 
-        List<? extends MethodParameter> parameters =
-                dexBackedMethod.getParameters();//被坑一笔这里的paramterssize不是inssize,是从debuginfo里获取来的,就是说这货在非静态方法下将this去掉了
+        List<? extends MethodParameter> parameters = dexBackedMethod.getParameters();
 
         int argReg = getRegisterSize(dexBackedMethod) - insSize;//reg = resiter - ins
         //                        System.out.println("registerCount:" + methodImplementation.getRegisterCount());
@@ -1074,16 +1176,17 @@ public class Main {
         return typeDescriptor.replace('/', '.').substring(1, typeDescriptor.length() - 1);
     }
 
-    private static void annotionToString(PrintStream printStream, Annotation annotation) {
+    private static void annotionToString(PrintStream printStream, Annotation annotation, Indentation indent) {
         List<String> attributes = new ArrayList<String>();
         Set<? extends AnnotationElement> elements = annotation.getElements();
         for (AnnotationElement element : elements) {
             attributes.add(String
                     .format("%s=%s", element.getName(), DexEncodedValueUtils.getEncodeValue(element.getValue())));
         }
+        printStream.print(indent.toString());
         printStream.println(String.format("@%s(%s)", annotation.getType(), String.join(",", attributes)));
     }
-
+    
     public static GotoTable buildGotoTable(MutableMethodImplementation methodImplementation) {
         GotoTable gotoTable = new GotoTable();
 
