@@ -8,5 +8,5 @@
 *传统的Smali代码*
 ![](image/smali.png)
 
-*SimpleSmali语法*
+*SimpleSmali代码*
 ![](image/new_smali.png)
