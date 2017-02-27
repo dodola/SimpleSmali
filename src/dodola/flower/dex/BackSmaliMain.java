@@ -10,6 +10,7 @@ import org.jf.dexlib2.dexbacked.*;
 import org.jf.dexlib2.dexbacked.raw.CodeItem;
 import org.jf.dexlib2.dexbacked.reference.DexBackedFieldReference;
 import org.jf.dexlib2.dexbacked.reference.DexBackedMethodReference;
+import org.jf.dexlib2.dexbacked.reference.DexBackedTypeReference;
 import org.jf.dexlib2.iface.Annotation;
 import org.jf.dexlib2.iface.AnnotationElement;
 import org.jf.dexlib2.iface.ClassDef;
@@ -117,7 +118,7 @@ public class BackSmaliMain {
                     }
                     if (builderInstruction.getOpcode() != Opcode.NOP) {
                         printStream.write(indent.toString());
-                        printStream.write(opcodeToString(builderInstruction, gotoTable, localInfo));
+                        printStream.write(opcodeToString(dexBackedMethod, builderInstruction, gotoTable, localInfo));
                         printStream.write(newLine);
                         printStream.write(newLine);
 
@@ -394,7 +395,7 @@ public class BackSmaliMain {
         }
     }
 
-    private static String opcodeToString(BuilderInstruction builderInstruction,
+    private static String opcodeToString(DexBackedMethod dexBackedMethod, BuilderInstruction builderInstruction,
            /* DexBackedMethodImplementation methodImplementation,*/ GotoTable gotoTable, LocalInfo localInfo) {
 
         Opcode opcode = builderInstruction.getOpcode();
@@ -540,19 +541,30 @@ public class BackSmaliMain {
                 String referenceString = ReferenceUtil.getReferenceString(builderInstruction22c.getReference());
 
                 return String.format("%s =new %s", formatRegisterName(builderInstruction22c.getRegisterA(), localInfo),
-                        referenceString != null ?
-                                referenceString.replace("[]", String.format("[%s]",
-                                        formatRegisterName(builderInstruction22c.getRegisterB(), localInfo))) :
-                                null);
+                        typeToString(referenceString));
             }
             case FILLED_NEW_ARRAY: {
                 //FIXME:
                 BuilderInstruction35c builderInstruction35c = (BuilderInstruction35c) builderInstruction;
-                //                return String.format("filled-new-array %s, %s",String.join(",",))
-                return "";
+
+                int[] registers = new int[5];
+                registers[0] = builderInstruction35c.getRegisterC();
+                registers[1] = builderInstruction35c.getRegisterD();
+                registers[2] = builderInstruction35c.getRegisterE();
+                registers[3] = builderInstruction35c.getRegisterF();
+                registers[4] = builderInstruction35c.getRegisterG();
+                StringJoiner joiner = new StringJoiner(",");
+                for (int i = 0; i < builderInstruction35c.getRegisterCount(); i++) {
+                    joiner.add(formatRegisterName(registers[i], localInfo));
+                }
+
+                return String.format("filled-new-array %s, %s", joiner.toString(), typeToString(
+                        ((DexBackedTypeReference) ((BuilderInstruction35c) builderInstruction).getReference())
+                                .getType()));
             }
             case FILLED_NEW_ARRAY_RANGE: {
-                return "";
+                BuilderInstruction3rc builderInstruction3rc = (BuilderInstruction3rc) builderInstruction;
+                return "filled-new-array/range ";
             }
             case ARRAY_LENGTH: {
                 BuilderInstruction12x builderInstruction12x = (BuilderInstruction12x) builderInstruction;
