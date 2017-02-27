@@ -10,3 +10,15 @@
 
 *SimpleSmali代码*
 ![](image/new_smali.png)
+
+
+## Download
+### [ssmali.jar 1.0alpha](https://github.com/dodola/SimpleSmali/releases)
+
+## USE
+
+```bash
+java -jar ssmali.jar d class.dex -o ./output
+
+```
+
